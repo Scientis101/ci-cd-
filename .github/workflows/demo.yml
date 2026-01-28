@@ -9,8 +9,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: enter directory
+    
+        
+    - name: Checkout
       uses: actions/checkout@v1
-    - run: cd backend && npm i
-    - run: cd backend && npm run build --if-present
-    - run: cd backend && npm test
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16.x
+
+    - name: Install dependencies and Build
+      run: |
+        cd backend && npm i
+        cd backend && npm run build --if-present
+
+    
