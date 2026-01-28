@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+    - name: enter directory
+      uses: actions/checkout@v1
+    - run: cd backend && npm i
+    - run: cd backend && npm run build --if-present
+    - run: cd backend && npm test
