@@ -1,28 +1,128 @@
-name: Continuous integration
-
+name: CI Backend
+run-name: "Building Backend Artifact (${{ inputs.ref }})"
 on:
-  push:
-    branches: ["main"]
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 jobs:
-  github_actions_demo:
-    runs-on: ubuntu-latest
-
+  be-build:
+    name: 🛠️ Build Backend Artifact
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
+      - name: Cache Node Modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          node-version: 20.x
 
-      - name: Install dependencies
-        working-directory: backend
-        run: npm ci
+      - name: Install Deps
+        run: cd backend && npm i
 
-      - name: Build project
-        working-directory: backend
-        run: npm run build --if-present
+      - name: Build
+        run: cd backend && npm run build
+
+      - name: Store Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-artifact-${{ inputs.ref }}
+          path: backend/build/
+
+  be-lint:
+    name: 🕵️ Lint Backend Code
+    needs: [be-build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Node Modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Dependencies
+        run: cd backend && npm i
+
+      - name: Lint the code
+        run: cd backend && npm run lint
+
+  be-test:
+    name: 🧪 Backend Unit Tests
+    needs: [be-build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Node Modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+
+      - name: Install Dependencies
+        run: cd backend && npm i
+
+      - name: Run Unit Tests
+        run: cd backend && npm t
+
+  be-security-audit:
+    name: 🛡️ Audit Backend Packages for Security Vulnerabilities
+    needs: [be-build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for security issue
+        run: cd backend && npm audit --omit=dev --audit-level=high
+
+  be-static-analysis:
+    name: 🔬 Run Static Analysis on Backend Code
+    needs: [be-build]
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          config-file: ./.github/codeql/codeql.config.yml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Cache Node Modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: be-node-${{ hashFiles('backend/package-lock.json') }}
+          
+      - name: Install Deps
+        run: cd backend && npm i
+
+      - name: Build
+        run: cd backend && npm run build
+
+      # - name: Perform Analysis
+      #   uses: github/codeql-action/analyze@v1
